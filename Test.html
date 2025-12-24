@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SecureSheetDB UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Dependencies -->
+    <!-- 1. LZ-String for Compression -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    
+    <!-- 2. SecureSheetDB Library (Assuming it's in the same folder, or paste the JS code here) -->
+    <script src="SecureSheetDB.js"></script> 
+</head>
+<body class="bg-light">
+
+<div class="container py-5" style="max-width: 800px;">
+    <h2 class="text-center mb-4">🔐 Secure Encrypted Vault</h2>
+
+    <!-- Connection Panel -->
+    <div class="card p-4 mb-4 shadow-sm">
+        <h5 class="card-title text-primary">Connection & Keys</h5>
+        <div class="row g-2">
+            <div class="col-md-5">
+                <input type="password" id="key" class="form-control" placeholder="User Password (Encryption Key)">
+            </div>
+            <div class="col-md-5">
+                <input type="password" id="secret" class="form-control" placeholder="API Secret (Server Auth)">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-dark w-100" onclick="connectDB()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Entry Form -->
+    <div class="card p-4 mb-4 shadow-sm" id="mainApp" style="opacity: 0.5; pointer-events: none;">
+        <input type="hidden" id="recordId">
+        <div class="mb-3">
+            <label>Title / Name</label>
+            <input type="text" id="name" class="form-control">
+        </div>
+        <div class="mb-3">
+            <label>Secret Details (Will be Compressed & Encrypted)</label>
+            <textarea id="details" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="text-end">
+            <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
+            <button class="btn btn-primary" onclick="saveData()">Save Securely</button>
+        </div>
+    </div>
+
+    <!-- Data List -->
+    <div class="card p-4 shadow-sm">
+        <h5>Stored Records</h5>
+        <ul id="list" class="list-group list-group-flush mb-3"></ul>
+        <button id="loadMoreBtn" class="btn btn-outline-primary w-100" onclick="loadData()">Load More</button>
+        <p id="status" class="text-center text-muted small mt-2"></p>
+    </div>
+</div>
+
+<script>
+    // === APP CONFIGURATION ===
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypKtK2ZdoaPm5AbzCYvX5mAMzPAjC_-XWeuwPQsfejiCvcF0fmM14mkBH8R9xQbzhW9g/exec'; 
+    // =========================
+
+    const db = new SecureSheetDB(SCRIPT_URL);
+    let currentOffset = 0;
+    const PAGE_LIMIT = 5;
+
+    function connectDB() {
+        const key = document.getElementById('key').value;
+        const secret = document.getElementById('secret').value;
+        
+        if(!key || !secret) return alert("Please enter both keys!");
+        
+        db.setKeys(key, secret);
+        
+        // Unlock UI
+        document.getElementById('mainApp').style.opacity = '1';
+        document.getElementById('mainApp').style.pointerEvents = 'auto';
+        
+        // Initial Load
+        reloadList();
+    }
+
+    async function saveData() {
+        const id = document.getElementById('recordId').value;
+        const data = {
+            name: document.getElementById('name').value,
+            details: document.getElementById('details').value
+        };
+
+        if(!data.name) return alert("Name is required");
+
+        const btn = document.querySelector('button.btn-primary');
+        const orgText = btn.innerText;
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        const res = await db.save(data, id || null);
+        
+        alert(res.message);
+        btn.innerText = orgText;
+        btn.disabled = false;
+
+        if (res.status === 'success') {
+            resetForm();
+            reloadList();
+        }
+    }
+
+    function reloadList() {
+        document.getElementById('list').innerHTML = '';
+        currentOffset = 0;
+        document.getElementById('loadMoreBtn').style.display = 'block';
+        loadData();
+    }
+
+    async function loadData() {
+        const btn = document.getElementById('loadMoreBtn');
+        const status = document.getElementById('status');
+        btn.innerText = "Loading...";
+        
+        const res = await db.read(currentOffset, PAGE_LIMIT);
+
+        if (res.status === 'success') {
+            const list = document.getElementById('list');
+            
+            if(res.data.length === 0 && currentOffset === 0) {
+                status.innerText = "No records found.";
+                btn.style.display = 'none';
+                return;
+            }
+
+            res.data.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `
+                    <div>
+                        <strong>${item.name}</strong><br>
+                        <small class="text-muted">${item.details.substring(0, 50)}...</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-info me-1" onclick='edit("${item.id}", ${JSON.stringify(item)})'>Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick='del("${item.id}")'>Del</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+
+            currentOffset += res.data.length;
+            
+            if (!res.hasMore) {
+                btn.style.display = 'none';
+                status.innerText = "All data loaded.";
+            } else {
+                btn.innerText = "Load More";
+            }
+        } else {
+            alert("Error: " + res.message);
+        }
+    }
+
+    function edit(id, data) {
+        document.getElementById('recordId').value = id;
+        document.getElementById('name').value = data.name;
+        document.getElementById('details').value = data.details;
+        window.scrollTo(0,0);
+    }
+
+    async function del(id) {
+        if(!confirm("Are you sure? This cannot be undone.")) return;
+        await db.delete(id);
+        reloadList();
+    }
+
+    function resetForm() {
+        document.getElementById('recordId').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('details').value = '';
+    }
+</script>
+
+</body>
+</html>
