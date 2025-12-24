@@ -60,19 +60,19 @@ You can use `SecureSheetDB` directly in your HTML file via CDN.
 
 Include **LZ-String** (required dependency) and **SecureSheetDB**.
 
-**
+`
 <!-- 1. LZ-String (Dependency for compression) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 
 <!-- 2. SecureSheetDB (Your Library) -->
 <script src="https://cdn.jsdelivr.net/gh/developer-Dipto/SecureSheetDB@main/SecureSheetDB.js"></script>
-**
+`
 
 ---
 
 ### 2. Initialize the Databas
 
-**
+`
 // Replace with your Google Web App URL
 const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
@@ -82,7 +82,7 @@ const db = new SecureSheetDB(SCRIPT_URL);
 // 1. User Password: Used to Encrypt/Decrypt data (Keep this safe!)
 // 2. API Secret: Must match the API_SECRET in your Google Apps Script
 db.setKeys('my-strong-password', 'my-api-secret-123');
-**
+`
 
 ---
 
@@ -90,7 +90,7 @@ db.setKeys('my-strong-password', 'my-api-secret-123');
 
 You can save any JSON object. It will be compressed and encrypted automatically.
 
-**
+`
 const myData = {
   name: "Dipto",
   role: "Developer",
@@ -104,7 +104,7 @@ db.save(myData).then(response => {
 
 // To Update: Pass the ID as the second parameter
 // db.save(myData, '1766542243090');
-**
+`
 
 ---
 
@@ -112,7 +112,7 @@ db.save(myData).then(response => {
 
 Fetch data with pagination (offset and limit).
 
-**
+`
 // Read first 10 records
 db.read(0, 10).then(response => {
   if (response.status === 'success') {
@@ -120,17 +120,17 @@ db.read(0, 10).then(response => {
     // Output: [{ id: "...", name: "Dipto", ... }]
   }
 });
-**
+`
 
 ---
 
 ### 5. Delete Data
 
-**
+`
 db.delete('UNIQUE_RECORD_ID').then(response => {
   console.log(response.message);
 });
-**
+`
 
 ---
 
